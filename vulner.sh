@@ -180,7 +180,6 @@ function checkWeakPassword {
         local hydra_cmd=""
 
         if [ ! -z "$services" ]; then
-            echo "in here"
             local port=$(echo $services | cut -d '|' -f 1 )
             local service_name=$(echo $services | cut -d '|' -f 2 )
 
@@ -196,7 +195,7 @@ function checkWeakPassword {
 
             # Find weak credential with hydra
             echo "[#] Attacking $hydra_cmd..."
-            hydra -L $USER_WORDLIST -P $PASS_WORDLIST $hydra_cmd -t 8 -I -o $hydra_output_file
+            hydra -L $USER_WORDLIST -P $PASS_WORDLIST $hydra_cmd -I -o $hydra_output_file &>/dev/null
         fi
     done
 
