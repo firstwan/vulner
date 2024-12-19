@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #################################################################
-# Bash Name: Info Extractor					                    #
-# Author: Wan Siew Yik						                    #
-# Student Code: s4                                        	    #
-# Unit Code: CFC060524                                  	    #
-# Tutor Name: Samson                            	       	    #
+# Bash Name: Vulner                                             #
+# Author: Wan Siew Yik                                          #
+# Student Code: s4                                              #
+# Unit Code: CFC060524                                          #
+# Tutor Name: Samson                                            #
 #################################################################
 
 # Options configuration variable
@@ -161,13 +161,17 @@ function parseNmapXML {
 
 # Function to check is it have weak password applied
 function checkWeakPassword {
-    local hosts=$(query_data "SELECT id, ip_address FROM hosts;")
+    # Create file to store found password
+    local hydra_output_file="found_password.txt"
+    touch $hydra_output_file
 
+    local hosts=$(query_data "SELECT id, ip_address FROM hosts;")
+    
     for host in $hosts; do
         # Check which service is available to exploit
         local host_id=$(echo $host | cut -d '|' -f 1)
         local host_ip=$(echo $host | cut -d '|' -f 2)
-        local target_service="'ssh', 'rdp', 'telnet', 'ftp'"
+        local target_service="'ssh', 'rdp', 'telnet', 'ftp', 'ms-wbt-server'"
         local services=$(query_data "SELECT port_num, service_name 
                 FROM ports
                 WHERE service_name in ($target_service) 
@@ -176,15 +180,23 @@ function checkWeakPassword {
         local hydra_cmd=""
 
         if [ ! -z "$services" ]; then
+            echo "in here"
             local port=$(echo $services | cut -d '|' -f 1 )
             local service_name=$(echo $services | cut -d '|' -f 2 )
 
-            hydra_cmd="$service_name://$host_ip -s $port"
 
-            local hydra_output_file="found_password.txt"
+            case $service_name in
+                "ms-wbt-server")
+                    hydra_cmd="rdp://$host_ip -s $port"
+                ;;
+                *)
+                    hydra_cmd="$service_name://$host_ip -s $port"
+                ;;
+            esac
+
             # Find weak credential with hydra
-            echo "[#] Attacking $service_name://$host_ip:$port..."
-            hydra -L $USER_WORDLIST -P $PASS_WORDLIST $hydra_cmd -I -o $hydra_output_file &>/dev/null
+            echo "[#] Attacking $hydra_cmd..."
+            hydra -L $USER_WORDLIST -P $PASS_WORDLIST $hydra_cmd -t 8 -I -o $hydra_output_file
         fi
     done
 
@@ -379,7 +391,7 @@ if [ -z "$OUTPUT_DIR" ]; then
 fi
 
 # Install required package
-APP_TO_INSTALL=("seclists sqlite3 hydra zip")
+APP_TO_INSTALL=("seclists sqlite3 hydra zip xmlstarlet")
 
 echo "[#] Updating package repo...."
 sudo apt-get update > /dev/null 2>&1
